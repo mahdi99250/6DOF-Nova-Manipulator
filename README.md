@@ -1,1 +1,6 @@
 # Manipulator-ROS2
+
+![OS](https://img.shields.io/ubuntu/v/ubuntu-wallpapers/noble)
+![ROS2](https://img.shields.io/ros/v/jazzy/rclcpp)
+
+The robot name is Nova Manipulator.
