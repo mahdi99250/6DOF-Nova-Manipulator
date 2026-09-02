@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>my_robot</name>
+  <name>nova</name>
   <version>0.0.0</version>
   <description>My 6DOF Nova manipulator series robots by Elfin manipulator (Meta Package)</description>
   <maintainer email="mahdimomeni178@gmail.com">mahdi_99250</maintainer>
