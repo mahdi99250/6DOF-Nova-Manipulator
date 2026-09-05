@@ -3,11 +3,13 @@
 <package format="3">
   <name>nova_description</name>
   <version>0.0.0</version>
-  <description>TODO: Package description</description>
+  <description>contains the robot description files that define the physical aspects of a robot, 
+    including its geometry, kinematics, dynamics, and visual aspects. </description>
   <maintainer email="mahdimomeni178@gmail.com">mahdi_99250</maintainer>
   <license>Apache-2.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
+  <depend>urdf_tutorial</depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>
