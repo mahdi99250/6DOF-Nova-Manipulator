@@ -1,0 +1,85 @@
+# Joint properties
+
+joint1:
+  origin:
+    x: 0
+    y: 0
+    z: 0.1925
+    roll: 0
+    pitch: 0
+    yaw: 0
+  limit:
+    lower: -3.14
+    upper: +3.14
+    effort: 104
+    velocity: 1.57
+
+joint2:
+  origin:
+    x: 0
+    y: 0
+    z: 0
+    roll: 1.5708
+    pitch: 0
+    yaw: 0
+  limit:
+    lower: -2.35
+    upper: +2.35
+    effort: 104
+    velocity: 1.27
+
+joint3:
+  origin:
+    x: 0
+    y: 0.266
+    z: 0
+    roll: 3.1416
+    pitch: 0
+    yaw: 1.5708
+  limit:
+    lower: -2.61
+    upper: +2.61
+    effort: 69
+    velocity: 1.57
+
+joint4:
+  origin:
+    x: 0
+    y: 0
+    z: 0
+    roll: 1.5708
+    pitch: 0
+    yaw: 1.5708
+  limit:
+    lower: -3.14
+    upper: +3.14
+    effort: 69
+    velocity: 1.57
+
+joint5:
+  origin:
+    x: 0
+    y: 0
+    z: 0.324
+    roll: -1.5708
+    pitch: 0
+    yaw: 0
+  limit:
+    lower: -2.56
+    upper: +2.56
+    effort: 34
+    velocity: 1.57
+
+joint6:
+  origin:
+    x: 0
+    y: 0
+    z: 0
+    roll: +1.5708
+    pitch: 0
+    yaw: 0
+  limit:
+    lower: -3.14
+    upper: +3.14
+    effort: 34
+    velocity: 1.57
