@@ -3,3 +3,4 @@
 6dof_nova_manipulator_ws/install/
 
 .vscode/
+.aider*
