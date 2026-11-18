@@ -1,7 +1,28 @@
+# ROS 2 / colcon workspace artifacts
 6dof_nova_manipulator_ws/build/
 6dof_nova_manipulator_ws/log/
 6dof_nova_manipulator_ws/install/
 
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# C/C++ & CMake
+*.o
+*.a
+*.so
+compile_commands.json
+
+# Editors & OS
 .vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# AI / agent tools
 .aider*
 .agents/
+.crush/
