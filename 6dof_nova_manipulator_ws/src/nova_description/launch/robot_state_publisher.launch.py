@@ -1,20 +1,20 @@
 #!/usr/bin/env python3
 """
-Launch RViz visualization for the mycobot robot.
+Launch RViz visualization for the Nova 3 robot.
 
-This launch file sets up the complete visualization environment for the mycobot robot,
+This launch file sets up the complete visualization environment for the Nova 3 robot,
 including robot state publisher, joint state publisher, and RViz2. It handles loading
 and processing of URDF/XACRO files and controller configurations.
 
-:author: Addison Sears-Collins
-:date: November 15, 2024
+author: Mahdi Momeni
+date: November 21, 2026
 """
 
 import os
-from pathlib import Path
+
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, OpaqueFunction
-from launch.conditions import IfCondition, UnlessCondition
+from launch.conditions import IfCondition
 from launch.substitutions import Command, LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterValue
@@ -24,9 +24,9 @@ from launch_ros.substitutions import FindPackageShare
 def process_ros2_controllers_config(context):
     """Process the ROS 2 controller configuration yaml file before loading the URDF.
 
-    This function reads a template configuration file, replaces placeholder values
-    with actual configuration, and writes the processed file to both source and
-    install directories.
+    This function reads a template configuration file from the installed package share
+    directory, replaces placeholder values with actual configuration, and writes the
+    processed file to the install share directory.
 
     Args:
         context: Launch context containing configuration values
@@ -36,37 +36,26 @@ def process_ros2_controllers_config(context):
     """
 
     # Get the configuration values
-    prefix = LaunchConfiguration("prefix").perform(context)
-    flange_link = LaunchConfiguration("flange_link").perform(context)
+    # flange_link = LaunchConfiguration("flange_link").perform(context)
     robot_name = LaunchConfiguration("robot_name").perform(context)
 
-    home = str(Path.home())
+    install_config_path = PathJoinSubstitution(
+        [FindPackageShare("nova_moveit_config"), "config", robot_name]
+    ).perform(context)
 
-    # Define both source and install paths
-    src_config_path = os.path.join(
-        home, "ros2_ws/src/mycobot_ros2/mycobot_moveit_config/config", robot_name
-    )
-    install_config_path = os.path.join(
-        home,
-        "ros2_ws/install/mycobot_moveit_config/share/mycobot_moveit_config/config",
-        robot_name,
-    )
-
-    # Read from source template
-    template_path = os.path.join(src_config_path, "ros2_controllers_template.yaml")
+    # Read from template in install share directory
+    template_path = os.path.join(install_config_path, "ros2_controllers_template.yaml")
     with open(template_path, "r", encoding="utf-8") as file:
         template_content = file.read()
 
     # Create processed content (leaving template untouched)
-    processed_content = template_content.replace("${prefix}", prefix)
-    processed_content = processed_content.replace("${flange_link}", flange_link)
+    processed_content = template_content.replace("${robot_name}", robot_name)
 
-    # Write processed content to both source and install directories
-    for config_path in [src_config_path, install_config_path]:
-        os.makedirs(config_path, exist_ok=True)
-        output_path = os.path.join(config_path, "ros2_controllers.yaml")
-        with open(output_path, "w", encoding="utf-8") as file:
-            file.write(processed_content)
+    # Write processed content to install share directory
+    os.makedirs(install_config_path, exist_ok=True)
+    output_path = os.path.join(install_config_path, "ros2_controllers.yaml")
+    with open(output_path, "w", encoding="utf-8") as file:
+        file.write(processed_content)
 
     return []
 
@@ -74,10 +63,7 @@ def process_ros2_controllers_config(context):
 # Define the arguments for the XACRO file
 ARGUMENTS = [
     DeclareLaunchArgument(
-        "robot_name", default_value="mycobot_280", description="Name of the robot"
-    ),
-    DeclareLaunchArgument(
-        "prefix", default_value="", description="Prefix for robot joints and links"
+        "robot_name", default_value="nova", description="Name of the robot"
     ),
     DeclareLaunchArgument(
         "add_world",
@@ -86,20 +72,15 @@ ARGUMENTS = [
         description="Whether to add world link",
     ),
     DeclareLaunchArgument(
-        "base_link", default_value="base_link", description="Name of the base link"
+        "base_link", default_value="nova_base_link", description="Name of the base link"
     ),
     DeclareLaunchArgument(
         "base_type", default_value="g_shape", description="Type of the base"
     ),
     DeclareLaunchArgument(
-        "flange_link",
-        default_value="link6_flange",
-        description="Name of the flange link",
-    ),
-    DeclareLaunchArgument(
-        "gripper_type",
-        default_value="adaptive_gripper",
-        description="Type of the gripper",
+        "flange_link",  # End Effector
+        default_value="nova_end_link",
+        description="Name of the flange link",  # Name of the end effector
     ),
     DeclareLaunchArgument(
         "use_camera",
@@ -115,7 +96,7 @@ ARGUMENTS = [
     ),
     DeclareLaunchArgument(
         "use_gripper",
-        default_value="true",
+        default_value="false",
         choices=["true", "false"],
         description="Whether to attach a gripper",
     ),
@@ -123,10 +104,10 @@ ARGUMENTS = [
 
 
 def generate_launch_description():
-    """Generate the launch description for the mycobot robot visualization.
+    """Generate the launch description for the Nova 3 robot visualization.
 
     This function sets up all necessary nodes and parameters for visualizing
-    the mycobot robot in RViz, including:
+    the Nova 3 robot in RViz, including:
     - Robot state publisher for broadcasting transforms
     - Joint state publisher for simulating joint movements
     - RViz for visualization
@@ -135,14 +116,14 @@ def generate_launch_description():
         LaunchDescription: Complete launch description for the visualization setup
     """
     # Define filenames
-    urdf_package = "mycobot_description"
-    urdf_filename = "mycobot_280.urdf.xacro"
-    rviz_config_filename = "mycobot_280_description.rviz"
+    urdf_package = "nova_description"
+    urdf_filename = "nova.urdf.xacro"
+    rviz_config_filename = "nova_description.rviz"
 
     # Set paths to important files
     pkg_share_description = FindPackageShare(urdf_package)
     default_urdf_model_path = PathJoinSubstitution(
-        [pkg_share_description, "urdf", "robots", urdf_filename]
+        [pkg_share_description, "urdf", "mech", urdf_filename]
     )
     default_rviz_config_path = PathJoinSubstitution(
         [pkg_share_description, "rviz", rviz_config_filename]
@@ -203,9 +184,6 @@ def generate_launch_description():
                 "robot_name:=",
                 LaunchConfiguration("robot_name"),
                 " ",
-                "prefix:=",
-                LaunchConfiguration("prefix"),
-                " ",
                 "add_world:=",
                 LaunchConfiguration("add_world"),
                 " ",
@@ -217,9 +195,6 @@ def generate_launch_description():
                 " ",
                 "flange_link:=",
                 LaunchConfiguration("flange_link"),
-                " ",
-                "gripper_type:=",
-                LaunchConfiguration("gripper_type"),
                 " ",
                 "use_camera:=",
                 LaunchConfiguration("use_camera"),
