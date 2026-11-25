@@ -54,7 +54,7 @@
         <visual>
             <origin xyz="0 0 0" rpy="0 0 0" />
             <geometry>
-                <mesh filename="package://nova_description/meshes/visual/nova3/nova_base.STL" />
+                <mesh filename="package://nova_description/meshes/visual/nova/nova_base.STL" />
             </geometry>
             <material name="">
                 <color rgba="0.866666666666667 0.866666666666667 0.890196078431372 1" />
@@ -64,7 +64,7 @@
         <collision>
             <origin xyz="0 0 0" rpy="0 0 0" />
             <geometry>
-                <mesh filename="package://nova_description/meshes/visual/nova3/nova_base.STL" />
+                <mesh filename="package://nova_description/meshes/visual/nova/nova_base.STL" />
             </geometry>
         </collision>
     </link>
@@ -78,7 +78,7 @@
         <visual>
             <origin xyz="0 0 0" rpy="0 0 0" />
             <geometry>
-                <mesh filename="package://nova_description/meshes/visual/nova3/nova_link1.STL" />
+                <mesh filename="package://nova_description/meshes/visual/nova/nova_link1.STL" />
             </geometry>
             <material name="">
                 <color rgba="1 1 1 1" />
@@ -87,7 +87,7 @@
         <collision>
             <origin xyz="0 0 0" rpy="0 0 0" />
             <geometry>
-                <mesh filename="package://nova_description/meshes/visual/nova3/nova_link1.STL" />
+                <mesh filename="package://nova_description/meshes/visual/nova/nova_link1.STL" />
             </geometry>
         </collision>
     </link>
@@ -106,7 +106,7 @@
         <visual>
             <origin xyz="0 0 0" rpy="0 0 0" />
             <geometry>
-                <mesh filename="package://nova_description/meshes/visual/nova3/nova_link2.STL" />
+                <mesh filename="package://nova_description/meshes/visual/nova/nova_link2.STL" />
             </geometry>
             <material name="">
                 <color rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
@@ -115,7 +115,7 @@
         <collision>
             <origin xyz="0 0 0" rpy="0 0 0" />
             <geometry>
-                <mesh filename="package://nova_description/meshes/visual/nova3/nova_link2.STL" />
+                <mesh filename="package://nova_description/meshes/visual/nova/nova_link2.STL" />
             </geometry>
         </collision>
     </link>
@@ -134,7 +134,7 @@
         <visual>
             <origin xyz="0 0 0" rpy="0 0 0" />
             <geometry>
-                <mesh filename="package://nova_description/meshes/visual/nova3/nova_link3.STL" />
+                <mesh filename="package://nova_description/meshes/visual/nova/nova_link3.STL" />
             </geometry>
             <material name="">
                 <color rgba="1 1 1 1" />
@@ -143,7 +143,7 @@
         <collision>
             <origin xyz="0 0 0" rpy="0 0 0" />
             <geometry>
-                <mesh filename="package://nova_description/meshes/visual/nova3/nova_link3.STL" />
+                <mesh filename="package://nova_description/meshes/visual/nova/nova_link3.STL" />
             </geometry>
         </collision>
     </link>
@@ -162,7 +162,7 @@
         <visual>
             <origin xyz="0 0 0" rpy="0 0 0" />
             <geometry>
-                <mesh filename="package://nova_description/meshes/visual/nova3/nova_link4.STL" />
+                <mesh filename="package://nova_description/meshes/visual/nova/nova_link4.STL" />
             </geometry>
             <material name="">
                 <color rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
@@ -171,7 +171,7 @@
         <collision>
             <origin xyz="0 0 0" rpy="0 0 0" />
             <geometry>
-                <mesh filename="package://nova_description/meshes/visual/nova3/nova_link4.STL" />
+                <mesh filename="package://nova_description/meshes/visual/nova/nova_link4.STL" />
             </geometry>
         </collision>
     </link>
@@ -190,7 +190,7 @@
         <visual>
             <origin xyz="0 0 0" rpy="0 0 0" />
             <geometry>
-                <mesh filename="package://nova_description/meshes/visual/nova3/nova_link5.STL" />
+                <mesh filename="package://nova_description/meshes/visual/nova/nova_link5.STL" />
             </geometry>
             <material name="">
                 <color rgba="1 1 1 1" />
@@ -199,7 +199,7 @@
         <collision>
             <origin xyz="0 0 0" rpy="0 0 0" />
             <geometry>
-                <mesh filename="package://nova_description/meshes/visual/nova3/nova_link5.STL" />
+                <mesh filename="package://nova_description/meshes/visual/nova/nova_link5.STL" />
             </geometry>
         </collision>
     </link>
@@ -218,7 +218,7 @@
         <visual>
             <origin xyz="0 0 0" rpy="0 0 0" />
             <geometry>
-                <mesh filename="package://nova_description/meshes/visual/nova3/nova_link6.STL" />
+                <mesh filename="package://nova_description/meshes/visual/nova/nova_link6.STL" />
             </geometry>
             <material name="">
                 <color rgba="1 1 1 1" />
@@ -227,7 +227,7 @@
         <collision>
             <origin xyz="0 0 0" rpy="0 0 0" />
             <geometry>
-                <mesh filename="package://nova_description/meshes/visual/nova3/nova_link6.STL" />
+                <mesh filename="package://nova_description/meshes/visual/nova/nova_link6.STL" />
             </geometry>
         </collision>
     </link>
@@ -253,5 +253,12 @@
         <parent link="nova_link6" />
         <child link="nova_dummy_gripper" />
     </joint>
+
+    <xacro:include filename="$(find nova_description)/urdf/control/gazebo_sim_ros2_control.urdf.xacro"/>
+    <xacro:load_gazebo_sim_ros2_control_plugin robot_name="$(arg robot_name)" use_gazebo="$(arg use_gazebo)" />
+
+    <xacro:include filename="$(find nova_description)/urdf/control/nova_ros2_control.urdf.xacro"/>
+    <xacro:nova_ros2_control flange_link="$(arg flange_link)" use_gazebo="$(arg use_gazebo)" />
+
 
 </robot>
