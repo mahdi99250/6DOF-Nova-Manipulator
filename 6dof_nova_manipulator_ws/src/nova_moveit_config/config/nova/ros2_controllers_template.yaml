@@ -2,7 +2,7 @@
 # efficiently and robustly using ROS 2 Control.
 controller_manager:
   ros__parameters:
-    update_rate: 100 # update_rate specifies how often (in Hz) the controllers should be updated.
+    update_rate: 1000 # Match Gazebo's 1000 Hz (0.001 s) physics step to avoid command lag.
 
     # The JointTrajectoryController allows you to send joint trajectory commands to a group
     # of joints on a robot. These commands specify the desired positions for each joint.
