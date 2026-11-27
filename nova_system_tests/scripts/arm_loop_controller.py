@@ -53,9 +53,7 @@ class ArmWaypointsLoopController(Node):
 
         # Use a relative action name so ROS 2 namespaces and remappings apply cleanly
         self._action_name = "arm_controller/follow_joint_trajectory"
-        self.arm_client = ActionClient(
-            self, FollowJointTrajectory, self._action_name
-        )
+        self.arm_client = ActionClient(self, FollowJointTrajectory, self._action_name)
 
         # List of joint names for the robot arm (avoiding stray leading underscore if empty)
         joint_prefix = f"{robot_name}_" if robot_name else ""
@@ -96,9 +94,7 @@ class ArmWaypointsLoopController(Node):
 
     def wait_for_action_server(self) -> bool:
         """Wait until the arm trajectory action server is available or shutdown occurs."""
-        self.get_logger().info(
-            f"Waiting for {self._action_name} action server..."
-        )
+        self.get_logger().info(f"Waiting for {self._action_name} action server...")
         while rclpy.ok() and not self.arm_client.wait_for_server(timeout_sec=1.0):
             self.get_logger().info("Arm action server not available yet, waiting...")
 
@@ -159,7 +155,7 @@ class ArmWaypointsLoopController(Node):
         """Convert seconds as float into builtin_interfaces/Duration."""
         clamped = max(0.0, float(duration_sec))
         sec = int(clamped)
-        nanosec = int(round((clamped - sec) * 1_000_000_000))
+        nanosec = round((clamped - sec) * 1_000_000_000)
         if nanosec >= 1_000_000_000:
             sec += 1
             nanosec -= 1_000_000_000
