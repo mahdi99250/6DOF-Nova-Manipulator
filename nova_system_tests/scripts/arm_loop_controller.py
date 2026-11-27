@@ -6,7 +6,7 @@ This script creates a ROS 2 node that moves the robot arm through a list of targ
 joint waypoints and back to the home position in a continuous, non-blocking loop.
 
 Action Clients:
-    /arm_controller/follow_joint_trajectory (control_msgs/FollowJointTrajectory):
+    arm_controller/follow_joint_trajectory (control_msgs/FollowJointTrajectory):
         Commands for controlling arm joint positions
 
 :author: Mahdi Momeni
@@ -43,15 +43,22 @@ class ArmWaypointsLoopController(Node):
         super().__init__("arm_waypoints_loop_controller")
 
         self.declare_parameter("robot_name", "nova")
-        robot_name = self.get_parameter("robot_name").get_parameter_value().string_value
-
-        # Set up arm trajectory action client for arm movement control
-        self.arm_client = ActionClient(
-            self, FollowJointTrajectory, "/arm_controller/follow_joint_trajectory"
+        robot_name = (
+            self.get_parameter("robot_name")
+            .get_parameter_value()
+            .string_value.strip()
+            .rstrip("_")
         )
 
-        # List of joint names for the Nova robot arm
-        self.joint_names = [f"{robot_name}_joint{i}" for i in range(1, 7)]
+        # Use a relative action name so ROS 2 namespaces and remappings apply cleanly
+        self._action_name = "arm_controller/follow_joint_trajectory"
+        self.arm_client = ActionClient(
+            self, FollowJointTrajectory, self._action_name
+        )
+
+        # List of joint names for the robot arm (avoiding stray leading underscore if empty)
+        joint_prefix = f"{robot_name}_" if robot_name else ""
+        self.joint_names = [f"{joint_prefix}joint{i}" for i in range(1, 7)]
 
         # Define target waypoints and home position for the arm (radians)
         self.waypoints = [
@@ -74,7 +81,7 @@ class ArmWaypointsLoopController(Node):
     def wait_for_action_server(self) -> bool:
         """Wait until the arm trajectory action server is available or shutdown occurs."""
         self.get_logger().info(
-            "Waiting for /arm_controller/follow_joint_trajectory action server..."
+            f"Waiting for {self._action_name} action server..."
         )
         while rclpy.ok() and not self.arm_client.wait_for_server(timeout_sec=1.0):
             self.get_logger().info("Arm action server not available yet, waiting...")
