@@ -71,7 +71,8 @@ class ArmWaypointsLoopController(Node):
         self._active_goal_handle = None
         self._shutting_down = False
 
-        # Wait for the arm action server without blocking shutdown forever
+    def wait_for_action_server(self) -> bool:
+        """Wait until the arm trajectory action server is available or shutdown occurs."""
         self.get_logger().info(
             "Waiting for /arm_controller/follow_joint_trajectory action server..."
         )
@@ -79,12 +80,15 @@ class ArmWaypointsLoopController(Node):
             self.get_logger().info("Arm action server not available yet, waiting...")
 
         if not rclpy.ok():
-            return
+            return False
 
         self.get_logger().info("Arm action server connected!")
+        return True
 
-        # Start the control loop once spinning begins
-        self.start_timer = self.create_timer(0.1, self._start_once)
+    def start(self) -> None:
+        """Start the waypoint loop timer once the action server is connected."""
+        if self.start_timer is None and not self._shutting_down and rclpy.ok():
+            self.start_timer = self.create_timer(0.1, self._start_once)
 
     def _cancel_timer(self, attr_name: str) -> None:
         """Cancel and destroy a node timer attribute if it exists."""
@@ -223,8 +227,10 @@ def main(args=None):
 
     try:
         controller = ArmWaypointsLoopController()
-        if rclpy.ok():
-            rclpy.spin(controller)
+        if controller.wait_for_action_server():
+            controller.start()
+            if rclpy.ok():
+                rclpy.spin(controller)
     except KeyboardInterrupt:
         if controller is not None:
             controller.get_logger().info("Shutting down arm waypoints controller...")
