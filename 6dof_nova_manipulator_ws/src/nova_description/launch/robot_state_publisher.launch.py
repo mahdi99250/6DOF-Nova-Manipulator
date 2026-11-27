@@ -11,53 +11,61 @@ date: November 21, 2026
 """
 
 import os
+import tempfile
 
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, OpaqueFunction
+from launch.actions import DeclareLaunchArgument, OpaqueFunction, SetLaunchConfiguration
 from launch.conditions import IfCondition
-from launch.substitutions import Command, LaunchConfiguration, PathJoinSubstitution
+from launch.substitutions import (
+    AndSubstitution,
+    Command,
+    LaunchConfiguration,
+    NotSubstitution,
+    PathJoinSubstitution,
+)
 from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterValue
 from launch_ros.substitutions import FindPackageShare
 
 
 def process_ros2_controllers_config(context):
-    """Process the ROS 2 controller configuration yaml file before loading the URDF.
+    """Generate a robot-specific ros2_controllers.yaml from the base template.
 
-    This function reads a template configuration file from the installed package share
-    directory, replaces placeholder values with actual configuration, and writes the
-    processed file to the install share directory.
+    Reads `config/nova/ros2_controllers_template.yaml` from `nova_moveit_config`,
+    substitutes `${robot_name}`, and writes the output to a temporary directory
+    (unless `controllers_file` was explicitly provided) so neither `src/` nor
+    `install/` is mutated and any `robot_name` is supported.
 
     Args:
         context: Launch context containing configuration values
 
     Returns:
-        list: Empty list as required by OpaqueFunction
+        list: Launch actions setting `controllers_file` if generated
     """
+    explicit_file = LaunchConfiguration("controllers_file").perform(context)
+    if explicit_file:
+        return []
 
-    # Get the configuration values
-    # flange_link = LaunchConfiguration("flange_link").perform(context)
     robot_name = LaunchConfiguration("robot_name").perform(context)
 
-    install_config_path = PathJoinSubstitution(
-        [FindPackageShare("nova_moveit_config"), "config", robot_name]
-    ).perform(context)
-
-    # Read from template in install share directory
-    template_path = os.path.join(install_config_path, "ros2_controllers_template.yaml")
+    template_path = os.path.join(
+        FindPackageShare("nova_moveit_config").perform(context),
+        "config",
+        "nova",
+        "ros2_controllers_template.yaml",
+    )
     with open(template_path, "r", encoding="utf-8") as file:
         template_content = file.read()
 
-    # Create processed content (leaving template untouched)
     processed_content = template_content.replace("${robot_name}", robot_name)
 
-    # Write processed content to install share directory
-    os.makedirs(install_config_path, exist_ok=True)
-    output_path = os.path.join(install_config_path, "ros2_controllers.yaml")
+    output_dir = os.path.join(tempfile.gettempdir(), "nova_ros2_control")
+    os.makedirs(output_dir, exist_ok=True)
+    output_path = os.path.join(output_dir, f"{robot_name}_ros2_controllers.yaml")
     with open(output_path, "w", encoding="utf-8") as file:
         file.write(processed_content)
 
-    return []
+    return [SetLaunchConfiguration("controllers_file", output_path)]
 
 
 # Define the arguments for the XACRO file
@@ -72,14 +80,16 @@ ARGUMENTS = [
         description="Whether to add world link",
     ),
     DeclareLaunchArgument(
-        "base_link", default_value="nova_base_link", description="Name of the base link"
+        "base_link",
+        default_value=[LaunchConfiguration("robot_name"), "_base_link"],
+        description="Name of the base link",
     ),
     DeclareLaunchArgument(
         "base_type", default_value="g_shape", description="Type of the base"
     ),
     DeclareLaunchArgument(
         "flange_link",  # End Effector
-        default_value="nova_end_link",
+        default_value=[LaunchConfiguration("robot_name"), "_end_link"],
         description="Name of the flange link",  # Name of the end effector
     ),
     DeclareLaunchArgument(
@@ -95,11 +105,16 @@ ARGUMENTS = [
         description="Whether to use Gazebo simulation",
     ),
     DeclareLaunchArgument(
-        "use_gripper",
-        default_value="false",
-        choices=["true", "false"],
-        description="Whether to attach a gripper",
+        "controllers_file",
+        default_value="",
+        description="Path to ros2_controllers.yaml (generated from template if empty)",
     ),
+    # DeclareLaunchArgument(
+    #     "use_gripper",
+    #     default_value="false",
+    #     choices=["true", "false"],
+    #     description="Whether to attach a gripper",
+    # ),
 ]
 
 
@@ -142,7 +157,7 @@ def generate_launch_description():
         name="jsp_gui",
         default_value="true",
         choices=["true", "false"],
-        description="Flag to enable joint_state_publisher_gui",
+        description="Flag to enable joint_state_publisher_gui when use_jsp is true",
     )
 
     declare_rviz_config_file_cmd = DeclareLaunchArgument(
@@ -159,18 +174,22 @@ def generate_launch_description():
 
     declare_use_jsp_cmd = DeclareLaunchArgument(
         name="use_jsp",
-        default_value="false",
+        default_value="true",
         choices=["true", "false"],
-        description="Enable the joint state publisher",
+        description="Enable the joint state publisher (GUI or non-GUI based on jsp_gui)",
     )
 
     declare_use_rviz_cmd = DeclareLaunchArgument(
-        name="use_rviz", default_value="true", description="Whether to start RVIZ"
+        name="use_rviz",
+        default_value="true",
+        choices=["true", "false"],
+        description="Whether to start RVIZ",
     )
 
     declare_use_sim_time_cmd = DeclareLaunchArgument(
         name="use_sim_time",
         default_value="false",
+        choices=["true", "false"],
         description="Use simulation (Gazebo) clock if true",
     )
 
@@ -202,8 +221,11 @@ def generate_launch_description():
                 "use_gazebo:=",
                 LaunchConfiguration("use_gazebo"),
                 " ",
-                "use_gripper:=",
-                LaunchConfiguration("use_gripper"),
+                "controllers_file:=",
+                LaunchConfiguration("controllers_file"),
+                # " ",
+                # "use_gripper:=",
+                # LaunchConfiguration("use_gripper"),
             ]
         ),
         value_type=str,
@@ -224,21 +246,21 @@ def generate_launch_description():
     )
 
     # Publish the joint state values for the non-fixed joints in the URDF file.
+    # Depending on jsp_gui, either launch joint_state_publisher or joint_state_publisher_gui when use_jsp is true.
     start_joint_state_publisher_cmd = Node(
         package="joint_state_publisher",
         executable="joint_state_publisher",
         name="joint_state_publisher",
         parameters=[{"use_sim_time": use_sim_time}],
-        condition=IfCondition(use_jsp),
+        condition=IfCondition(AndSubstitution(use_jsp, NotSubstitution(jsp_gui))),
     )
 
-    # Depending on gui parameter, either launch joint_state_publisher or joint_state_publisher_gui
     start_joint_state_publisher_gui_cmd = Node(
         package="joint_state_publisher_gui",
         executable="joint_state_publisher_gui",
         name="joint_state_publisher_gui",
         parameters=[{"use_sim_time": use_sim_time}],
-        condition=IfCondition(jsp_gui),
+        condition=IfCondition(AndSubstitution(use_jsp, jsp_gui)),
     )
 
     # Launch RViz
