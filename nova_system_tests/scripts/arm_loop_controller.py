@@ -22,6 +22,7 @@ from control_msgs.action import FollowJointTrajectory
 from rclpy.action import ActionClient
 from rclpy.node import Node
 from rclpy.signals import SignalHandlerOptions
+from sensor_msgs.msg import JointState
 from trajectory_msgs.msg import JointTrajectoryPoint
 
 
@@ -59,6 +60,21 @@ class ArmWaypointsLoopController(Node):
         # List of joint names for the robot arm (avoiding stray leading underscore if empty)
         joint_prefix = f"{robot_name}_" if robot_name else ""
         self.joint_names = [f"{joint_prefix}joint{i}" for i in range(1, 7)]
+
+        # Per-joint velocity limits (rad/s) matching nova_description/joint_properties.yaml
+        self._joint_velocity_limits = [1.57, 1.27, 1.57, 1.57, 1.57, 1.57]
+        self._velocity_scale = 0.6
+        self._min_duration_sec = 2.0
+        self._fallback_duration_sec = 4.0
+
+        # Track live joint positions for distance-scaled trajectory timing
+        self._current_positions: list[float] | None = None
+        self._last_target_positions: list[float] | None = None
+        self._joint_state_wait_ticks = 0
+        self._max_joint_state_wait_ticks = 20
+        self._joint_state_sub = self.create_subscription(
+            JointState, "joint_states", self._joint_state_callback, 10
+        )
 
         # Define target waypoints and home position for the arm (radians)
         self.waypoints = [
@@ -105,8 +121,68 @@ class ArmWaypointsLoopController(Node):
             self.destroy_timer(timer)
             setattr(self, attr_name, None)
 
+    def _joint_state_callback(self, msg: JointState) -> None:
+        """Store the latest joint positions ordered to match self.joint_names."""
+        name_to_pos = dict(zip(msg.name, msg.position))
+        if all(name in name_to_pos for name in self.joint_names):
+            self._current_positions = [
+                float(name_to_pos[name]) for name in self.joint_names
+            ]
+
+    def _compute_duration_sec(self, target_positions: list[float]) -> float:
+        """
+        Compute a safe trajectory duration from the current pose and velocity limits.
+
+        For a cubic trajectory with zero start/end velocity, peak velocity is
+        1.5 * |delta_q| / T, so T >= 1.5 * |delta_q| / (velocity_scale * v_limit).
+        """
+        reference = (
+            self._current_positions
+            if self._current_positions is not None
+            else self._last_target_positions
+        )
+        if reference is None:
+            return self._fallback_duration_sec
+
+        required_sec = self._min_duration_sec
+        for current, target, v_limit in zip(
+            reference, target_positions, self._joint_velocity_limits
+        ):
+            delta = abs(float(target) - current)
+            max_allowed_vel = self._velocity_scale * v_limit
+            if max_allowed_vel > 0.0:
+                required_sec = max(required_sec, 1.5 * delta / max_allowed_vel)
+        return required_sec
+
+    @staticmethod
+    def _to_duration_msg(duration_sec: float) -> Duration:
+        """Convert seconds as float into builtin_interfaces/Duration."""
+        clamped = max(0.0, float(duration_sec))
+        sec = int(clamped)
+        nanosec = int(round((clamped - sec) * 1_000_000_000))
+        if nanosec >= 1_000_000_000:
+            sec += 1
+            nanosec -= 1_000_000_000
+        return Duration(sec=sec, nanosec=nanosec)
+
     def _start_once(self) -> None:
-        """Trigger the first target once and destroy the startup timer."""
+        """Wait briefly for initial /joint_states, then start the waypoint loop."""
+        if self._shutting_down or not rclpy.ok():
+            self._cancel_timer("start_timer")
+            return
+
+        if (
+            self._current_positions is None
+            and self._joint_state_wait_ticks < self._max_joint_state_wait_ticks
+        ):
+            self._joint_state_wait_ticks += 1
+            return
+
+        if self._current_positions is None:
+            self.get_logger().warning(
+                "No joint_states received yet; using conservative trajectory duration."
+            )
+
         self._cancel_timer("start_timer")
         self._send_next_target()
 
@@ -120,15 +196,19 @@ class ArmWaypointsLoopController(Node):
         Returns:
             rclpy.task.Future: Future resolving to the ClientGoalHandle.
         """
+        target_positions = [float(p) for p in positions]
+        duration_sec = self._compute_duration_sec(target_positions)
+
         point = JointTrajectoryPoint()
-        point.positions = [float(p) for p in positions]
+        point.positions = target_positions
         point.velocities = [0.0] * len(self.joint_names)
-        point.time_from_start = Duration(sec=2, nanosec=0)
+        point.time_from_start = self._to_duration_msg(duration_sec)
 
         goal_msg = FollowJointTrajectory.Goal()
         goal_msg.trajectory.joint_names = self.joint_names
         goal_msg.trajectory.points = [point]
 
+        self._last_target_positions = target_positions
         return self.arm_client.send_goal_async(goal_msg)
 
     def _send_next_target(self) -> None:
