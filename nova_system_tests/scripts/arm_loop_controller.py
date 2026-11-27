@@ -44,6 +44,7 @@ class ArmWaypointsLoopController(Node):
         super().__init__("arm_waypoints_loop_controller")
 
         self.declare_parameter("robot_name", "nova")
+        # Normalize optional prefixes like "nova_" or whitespace before building joint names
         robot_name = (
             self.get_parameter("robot_name")
             .get_parameter_value()
@@ -61,6 +62,7 @@ class ArmWaypointsLoopController(Node):
 
         # Per-joint velocity limits (rad/s) matching nova_description/joint_properties.yaml
         self._joint_velocity_limits = [1.57, 1.27, 1.57, 1.57, 1.57, 1.57]
+        # Cap peak speed at 60% of joint limits for tracking margin; fall back to 4s if blind
         self._velocity_scale = 0.6
         self._min_duration_sec = 2.0
         self._fallback_duration_sec = 4.0
@@ -69,7 +71,7 @@ class ArmWaypointsLoopController(Node):
         self._current_positions: list[float] | None = None
         self._last_target_positions: list[float] | None = None
         self._joint_state_wait_ticks = 0
-        self._max_joint_state_wait_ticks = 20
+        self._max_joint_state_wait_ticks = 20  # Wait up to 2.0s (20 * 0.1s) at startup
         self._joint_state_sub = self.create_subscription(
             JointState, "joint_states", self._joint_state_callback, 10
         )
@@ -82,6 +84,7 @@ class ArmWaypointsLoopController(Node):
         ]
         self.home_pos = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 
+        # Cycle through all waypoints and finish each loop back at home
         self.targets = [
             (f"waypoint {index}", point)
             for index, point in enumerate(self.waypoints, start=1)
@@ -90,6 +93,7 @@ class ArmWaypointsLoopController(Node):
         self.pause_timer = None
         self.start_timer = None
         self._active_goal_handle = None
+        # Latch shutdown early so in-flight async callbacks stop scheduling new goals
         self._shutting_down = False
 
     def wait_for_action_server(self) -> bool:
@@ -111,6 +115,7 @@ class ArmWaypointsLoopController(Node):
 
     def _cancel_timer(self, attr_name: str) -> None:
         """Cancel and destroy a node timer attribute if it exists."""
+        # rclpy timers repeat by default, so one-shot timers must be canceled and destroyed
         timer = getattr(self, attr_name)
         if timer is not None:
             timer.cancel()
@@ -119,6 +124,7 @@ class ArmWaypointsLoopController(Node):
 
     def _joint_state_callback(self, msg: JointState) -> None:
         """Store the latest joint positions ordered to match self.joint_names."""
+        # JointState order can differ or come from partial publishers (e.g., gripper)
         name_to_pos = dict(zip(msg.name, msg.position))
         if all(name in name_to_pos for name in self.joint_names):
             self._current_positions = [
@@ -156,6 +162,7 @@ class ArmWaypointsLoopController(Node):
         clamped = max(0.0, float(duration_sec))
         sec = int(clamped)
         nanosec = round((clamped - sec) * 1_000_000_000)
+        # Carry over when rounding pushes nanosec to 1e9 (invalid for ROS Duration msgs)
         if nanosec >= 1_000_000_000:
             sec += 1
             nanosec -= 1_000_000_000
@@ -167,6 +174,7 @@ class ArmWaypointsLoopController(Node):
             self._cancel_timer("start_timer")
             return
 
+        # Give joint_state_broadcaster a brief window to publish before the first move
         if (
             self._current_positions is None
             and self._joint_state_wait_ticks < self._max_joint_state_wait_ticks
@@ -197,6 +205,7 @@ class ArmWaypointsLoopController(Node):
 
         point = JointTrajectoryPoint()
         point.positions = target_positions
+        # Zero target velocities yield smooth cubic deceleration at each waypoint
         point.velocities = [0.0] * len(self.joint_names)
         point.time_from_start = self._to_duration_msg(duration_sec)
 
@@ -204,6 +213,7 @@ class ArmWaypointsLoopController(Node):
         goal_msg.trajectory.joint_names = self.joint_names
         goal_msg.trajectory.points = [point]
 
+        # Cache last commanded target as fallback if joint_states stops updating
         self._last_target_positions = target_positions
         return self.arm_client.send_goal_async(goal_msg)
 
@@ -231,6 +241,7 @@ class ArmWaypointsLoopController(Node):
             self._schedule_next_target(1.0)
             return
 
+        # Cancel immediately if shutdown started while awaiting goal acceptance
         if self._shutting_down:
             goal_handle.cancel_goal_async()
             return
@@ -302,6 +313,7 @@ def main(args=None):
     # long enough to cancel any in-flight trajectory goal before shutting down.
     rclpy.init(args=args, signal_handler_options=SignalHandlerOptions.NO)
 
+    # Mirror SIGTERM (e.g. from ros2 launch) to KeyboardInterrupt since rclpy handlers are off
     def _handle_sigterm(signum, frame):
         raise KeyboardInterrupt
 
@@ -318,6 +330,7 @@ def main(args=None):
         if controller is not None:
             controller.get_logger().info("Shutting down arm waypoints controller...")
             cancel_future = controller.cancel_active_goal()
+            # Give the cancel request a brief bounded spin so it reaches arm_controller
             if cancel_future is not None and rclpy.ok():
                 rclpy.spin_until_future_complete(
                     controller, cancel_future, timeout_sec=1.0
