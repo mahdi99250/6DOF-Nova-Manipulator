@@ -1,14 +1,11 @@
-# ROS 2 / colcon workspace artifacts
-build/
-install/
-log/
-
+# Local documents & reports
 word/
 
 # Python
 __pycache__/
 *.py[cod]
 *.egg-info/
+.pytest_cache/
 
 # C/C++ & CMake
 *.o
@@ -16,15 +13,19 @@ __pycache__/
 *.so
 compile_commands.json
 
-# Editors & OS
+# Editors & IDEs
 .vscode/
 *.swp
 *.swo
 *~
+
+# OS & filesystem metadata
 .DS_Store
 Thumbs.db
+*:Zone.Identifier
 
 # AI / agent tools
 .aider*
 .agents/
 .crush/
+
