@@ -1,9 +1,22 @@
-<robot name="nova-Manipulator"
+<?xml version="1.0"?>
+<robot name="$(arg robot_name)"
     xmlns:xacro="http://www.ros.org/wiki/xacro">
 
+    <xacro:arg name="robot_name" default="nova"/>
+    <xacro:arg name="add_world" default="true"/>
+    <xacro:arg name="base_link" default=""/>
+    <xacro:arg name="base_type" default="g_shape"/>
+    <xacro:arg name="flange_link" default=""/>
+    <xacro:arg name="use_camera" default="false"/>
+    <xacro:arg name="use_gazebo" default="false"/>
+    <xacro:arg name="controllers_file" default="$(find nova_moveit_config)/config/nova/ros2_controllers.yaml"/>
+    <!-- <xacro:arg name="use_gripper" default="false"/> -->
+
+    <xacro:property name="prefix" value="$(arg robot_name)_"/>
+    <xacro:property name="resolved_base_link" value="${'$(arg base_link)' if '$(arg base_link)' != '' else prefix + 'base_link'}"/>
+    <xacro:property name="resolved_flange_link" value="${'$(arg flange_link)' if '$(arg flange_link)' != '' else prefix + 'end_link'}"/>
+
     <xacro:include filename="$(find nova_description)/urdf/mech/materials.xacro" />
-    <xacro:include filename="$(find nova_description)/urdf/mech/nova_robot.gazebo" />
-    <xacro:include filename="$(find nova_description)/urdf/mech/nova_transmission.xacro" />
     <xacro:include filename="$(find nova_description)/urdf/mech/macros.xacro" />
 
     <xacro:property name="link_props" value="${xacro.load_yaml('$(find nova_description)/urdf/properties/link_properties.yaml')}"/>
@@ -28,23 +41,25 @@
     <xacro:property name="PI" value="3.1415926535897931"/>
     <xacro:property name="density" value="3.09"/>
 
-    <link name="world"/>
+    <xacro:if value="$(arg add_world)">
+        <link name="world"/>
 
-    <joint name="world_base" type="fixed">
-        <origin xyz="0 0 0" rpy="0 0 -1.5708" />
-        <parent link="world" />
-        <child link="nova_base_link" />
-    </joint>
+        <joint name="${prefix}world_base" type="fixed">
+            <origin xyz="0 0 0" rpy="0 0 -1.5708" />
+            <parent link="world" />
+            <child link="${resolved_base_link}" />
+        </joint>
+    </xacro:if>
 
-    <link name="nova_base_link"/>
+    <link name="${resolved_base_link}"/>
 
-    <joint name="nova_base_joint" type="fixed">
+    <joint name="${prefix}base_joint" type="fixed">
         <origin xyz="0 0 0" rpy="0 0 ${PI/2}" />
-        <parent link="nova_base_link" />
-        <child link="nova_base" />
+        <parent link="${resolved_base_link}" />
+        <child link="${prefix}base" />
     </joint>
 
-    <link name="nova_base">
+    <link name="${prefix}base">
         <inertial>
             <origin xyz="${base_config['origin']['x']} ${base_config['origin']['y']} ${base_config['origin']['z']}" rpy="${base_config['origin']['roll']} ${base_config['origin']['pitch']} ${base_config['origin']['yaw']}" />
             <mass value="${base_config['mass']}"/>
@@ -69,7 +84,7 @@
         </collision>
     </link>
 
-    <link name="nova_link1">
+    <link name="${prefix}link1">
         <inertial>
             <origin xyz="${link1_config['origin']['x']} ${link1_config['origin']['y']} ${link1_config['origin']['z']}" rpy="${link1_config['origin']['roll']} ${link1_config['origin']['pitch']} ${link1_config['origin']['yaw']}" />
             <mass value="${link1_config['mass']}" />
@@ -92,12 +107,12 @@
         </collision>
     </link>
 
-    <xacro:joint name="nova_joint1" parent="nova_base" child="nova_link1">
+    <xacro:joint name="${prefix}joint1" parent="${prefix}base" child="${prefix}link1">
         <origin xyz="${joint1_config['origin']['x']} ${joint1_config['origin']['y']} ${joint1_config['origin']['z']}" rpy="${joint1_config['origin']['roll']} ${joint1_config['origin']['pitch']} ${joint1_config['origin']['yaw']}" />
         <limit lower="${joint1_config['limit']['lower']}" upper="${joint1_config['limit']['upper']}" effort="${joint1_config['limit']['effort']}" velocity="${joint1_config['limit']['velocity']}"/>
     </xacro:joint>
 
-    <link name="nova_link2">
+    <link name="${prefix}link2">
         <inertial>
             <origin xyz="${link2_config['origin']['x']} ${link2_config['origin']['y']} ${link2_config['origin']['z']}" rpy="${link2_config['origin']['roll']} ${link2_config['origin']['pitch']} ${link2_config['origin']['yaw']}" />
             <mass value="${link2_config['mass']}" />
@@ -120,12 +135,12 @@
         </collision>
     </link>
 
-    <xacro:joint name="nova_joint2" parent="nova_link1" child="nova_link2">
+    <xacro:joint name="${prefix}joint2" parent="${prefix}link1" child="${prefix}link2">
         <origin xyz="${joint2_config['origin']['x']} ${joint2_config['origin']['y']} ${joint2_config['origin']['z']}" rpy="${joint2_config['origin']['roll']} ${joint2_config['origin']['pitch']} ${joint2_config['origin']['yaw']}" />
         <limit lower="${joint2_config['limit']['lower']}" upper="${joint2_config['limit']['upper']}" effort="${joint2_config['limit']['effort']}" velocity="${joint2_config['limit']['velocity']}"/>
     </xacro:joint>
 
-    <link name="nova_link3">
+    <link name="${prefix}link3">
         <inertial>
             <origin xyz="${link3_config['origin']['x']} ${link3_config['origin']['y']} ${link3_config['origin']['z']}" rpy="${link3_config['origin']['roll']} ${link3_config['origin']['pitch']} ${link3_config['origin']['yaw']}" />
             <mass value="${link3_config['mass']}" />
@@ -148,12 +163,12 @@
         </collision>
     </link>
 
-    <xacro:joint name="nova_joint3" parent="nova_link2" child="nova_link3">
+    <xacro:joint name="${prefix}joint3" parent="${prefix}link2" child="${prefix}link3">
         <origin xyz="${joint3_config['origin']['x']} ${joint3_config['origin']['y']} ${joint3_config['origin']['z']}" rpy="${joint3_config['origin']['roll']} ${joint3_config['origin']['pitch']} ${joint3_config['origin']['yaw']}" />
         <limit lower="${joint3_config['limit']['lower']}" upper="${joint3_config['limit']['upper']}" effort="${joint3_config['limit']['effort']}" velocity="${joint3_config['limit']['velocity']}"/>
     </xacro:joint>
 
-    <link name="nova_link4">
+    <link name="${prefix}link4">
         <inertial>
             <origin xyz="${link4_config['origin']['x']} ${link4_config['origin']['y']} ${link4_config['origin']['z']}" rpy="${link4_config['origin']['roll']} ${link4_config['origin']['pitch']} ${link4_config['origin']['yaw']}" />
             <mass value="${link4_config['mass']}" />
@@ -176,12 +191,12 @@
         </collision>
     </link>
 
-    <xacro:joint name="nova_joint4" parent="nova_link3" child="nova_link4">
+    <xacro:joint name="${prefix}joint4" parent="${prefix}link3" child="${prefix}link4">
         <origin xyz="${joint4_config['origin']['x']} ${joint4_config['origin']['y']} ${joint4_config['origin']['z']}" rpy="${joint4_config['origin']['roll']} ${joint4_config['origin']['pitch']} ${joint4_config['origin']['yaw']}" />
         <limit lower="${joint4_config['limit']['lower']}" upper="${joint4_config['limit']['upper']}" effort="${joint4_config['limit']['effort']}" velocity="${joint4_config['limit']['velocity']}"/>
     </xacro:joint>
 
-    <link name="nova_link5">
+    <link name="${prefix}link5">
         <inertial>
             <origin xyz="${link5_config['origin']['x']} ${link5_config['origin']['y']} ${link5_config['origin']['z']}" rpy="${link5_config['origin']['roll']} ${link5_config['origin']['pitch']} ${link5_config['origin']['yaw']}" />
             <mass value="${link5_config['mass']}" />
@@ -204,12 +219,12 @@
         </collision>
     </link>
 
-    <xacro:joint name="nova_joint5" parent="nova_link4" child="nova_link5">
+    <xacro:joint name="${prefix}joint5" parent="${prefix}link4" child="${prefix}link5">
         <origin xyz="${joint5_config['origin']['x']} ${joint5_config['origin']['y']} ${joint5_config['origin']['z']}" rpy="${joint5_config['origin']['roll']} ${joint5_config['origin']['pitch']} ${joint5_config['origin']['yaw']}" />
         <limit lower="${joint5_config['limit']['lower']}" upper="${joint5_config['limit']['upper']}" effort="${joint5_config['limit']['effort']}" velocity="${joint5_config['limit']['velocity']}"/>
     </xacro:joint>
 
-    <link name="nova_link6">
+    <link name="${prefix}link6">
         <inertial>
             <origin xyz="${link6_config['origin']['x']} ${link6_config['origin']['y']} ${link6_config['origin']['z']}" rpy="${link6_config['origin']['roll']} ${link6_config['origin']['pitch']} ${link6_config['origin']['yaw']}" />
             <mass value="${link6_config['mass']}" />
@@ -232,33 +247,33 @@
         </collision>
     </link>
 
-    <xacro:joint name="nova_joint6" parent="nova_link5" child="nova_link6">
+    <xacro:joint name="${prefix}joint6" parent="${prefix}link5" child="${prefix}link6">
         <origin xyz="${joint6_config['origin']['x']} ${joint6_config['origin']['y']} ${joint6_config['origin']['z']}" rpy="${joint6_config['origin']['roll']} ${joint6_config['origin']['pitch']} ${joint6_config['origin']['yaw']}" />
         <limit lower="${joint6_config['limit']['lower']}" upper="${joint6_config['limit']['upper']}" effort="${joint6_config['limit']['effort']}" velocity="${joint6_config['limit']['velocity']}"/>
     </xacro:joint>
 
-    <link name="nova_end_link"></link>
+    <link name="${resolved_flange_link}"></link>
 
-    <joint name="nova_end_joint" type="fixed">
+    <joint name="${prefix}end_joint" type="fixed">
         <origin xyz="0 0 0.155" rpy="0 0 0" />
-        <parent link="nova_link6" />
-        <child link="nova_end_link" />
+        <parent link="${prefix}link6" />
+        <child link="${resolved_flange_link}" />
         <axis xyz="0 0 0" />
     </joint>
 
-    <link name="nova_dummy_gripper"/>
+    <!-- <link name="${prefix}dummy_gripper"/>
 
-    <joint name="nova_dummy_joint" type="fixed">
+    <joint name="${prefix}dummy_joint" type="fixed">
         <origin xyz="0 -0.111 0" rpy="${PI/2} ${-PI/2} 0" />
-        <parent link="nova_link6" />
-        <child link="nova_dummy_gripper" />
-    </joint>
+        <parent link="${prefix}link6" />
+        <child link="${prefix}dummy_gripper" />
+    </joint> -->
 
     <xacro:include filename="$(find nova_description)/urdf/control/gazebo_sim_ros2_control.urdf.xacro"/>
-    <xacro:load_gazebo_sim_ros2_control_plugin robot_name="$(arg robot_name)" use_gazebo="$(arg use_gazebo)" />
+    <xacro:load_gazebo_sim_ros2_control_plugin robot_name="$(arg robot_name)" use_gazebo="$(arg use_gazebo)" controllers_file="$(arg controllers_file)" />
 
     <xacro:include filename="$(find nova_description)/urdf/control/nova_ros2_control.urdf.xacro"/>
-    <xacro:nova_ros2_control flange_link="$(arg flange_link)" use_gazebo="$(arg use_gazebo)" />
+    <xacro:nova_ros2_control prefix="${prefix}" flange_link="${resolved_flange_link}" use_gazebo="$(arg use_gazebo)" />
 
 
 </robot>

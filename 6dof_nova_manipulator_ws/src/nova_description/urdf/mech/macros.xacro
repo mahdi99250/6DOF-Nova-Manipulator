@@ -8,6 +8,7 @@
             <child link="${child}" />
             <axis xyz="0 0 1" />
             <xacro:insert_block name="limit"/>
+            <dynamics damping="1.5" friction="0.3"/>
         </joint>
     </xacro:macro>
 </robot>
